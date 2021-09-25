@@ -194,8 +194,8 @@ def install(args):
                 print(f'{mod_id} could not be found')
                 print('double check the ID')
             else:
+                print(f'There was error retrieving information of {mod_id}.')
                 print(f'{e} happened: thats all we know')
-                print(type(e.code))
             continue
         except BaseException as e:
             print(f'{e} happened')

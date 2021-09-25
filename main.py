@@ -1,16 +1,21 @@
+import argparse
 import os.path
 import sys
 import io
-
 import json
 from urllib import request
+from urllib.error import HTTPError
+from copy import deepcopy
 
+args = []
 config = None
 config_dir = ''
 config_file = ''
 
 
 def load_paths():
+    ''' Configure path variables for this app
+    '''
     global config_dir
     global config_file
 
@@ -33,6 +38,8 @@ def load_paths():
 
 
 def load_config():
+    ''' Load from Config file onto global object: config
+    '''
     global config
 
     load_paths()
@@ -46,6 +53,8 @@ def load_config():
 
 
 def save_config():
+    ''' Write data present on global object: config, back to config file
+    '''
     global config
     global config_dir
     global config_file
@@ -57,45 +66,48 @@ def save_config():
 
 
 def initialize():
+    ''' Check existance of config file
+    should also check format to some extent
+    '''
     global config
     global config_dir
     global config_file
     load_config()
 
-    try:
-        do_exit = config['exit_right_away']
-    except BaseException:
-        do_exit = False
-
-    if (config == {}) or do_exit:
-        config['exit_right_away'] = True
+    if (config == {}):
+        print('config was empty')
         config['current_game_ver'] = '1.17.1'
         config['dest_dir'] = 'your_install_destination'
         config['mods'] = {}
         config['mods']['P7dR8mSH'] = {}
-        config['mods']['replace_this_with_project_ids'] = {}
-        # # mod_id = 'AZomiSrC'
-        # # mod_id = 'AANobbMI'
-        # mod_id = 'YL57xq9U'
         save_config()
-        print('config was empty or disabled')
-        print(f'edit {config_file} to use')
-        print('delete key "exit_right_away" or set it to False')
+
+        print('config was empty')
+        print(f'edit {config_file} and configure "dest_dir" to use')
+        sys.exit(1)
+
+    try:
+        if not os.path.exists(config['dest_dir']):
+            print(f'your dest_dir: {config["dest_dir"]}'
+                  + ' does not seem to exist.')
+            print(f'edit {config_file} and configure "dest_dir" to use')
+            sys.exit(1)
+    except BaseException as e:
+        print(f'Error: {e}')
+        print('Something was wrong with your config: {config_file}')
         sys.exit(1)
     save_config()
 
 
-def main():
+def update(args):
     global config
     global config_dir
     global config_file
 
     initialize()
 
+    print('Updating Mods...')
     for mod_id in config['mods'].keys():
-        if mod_id == 'exit_right_away':
-            continue
-
         current_game_version = config['current_game_ver']
         dest_dir = config['dest_dir']
 
@@ -127,17 +139,20 @@ def main():
         # check if the latest is installed
         if (fname == oldfile)\
                 and os.path.exists(os.path.join(dest_dir, fname)):
-            print(f'{fname} is up to date: {version_number}')
+            print(f'{mod_id}: {fname} is up to date: {version_number}')
             continue
 
         # download if otherwise
         with request.urlopen(url) as req,\
                 io.open(os.path.join(dest_dir, fname), 'wb') as file:
+            print(f'downloading {fname}...')
             file.write(req.read())
+            print(f'installing {fname}...')
 
         # remove old file if any
         if os.path.exists(os.path.join(dest_dir, oldfile))\
                 and oldfile != fname:
+            print(f'removing {oldfile}...')
             os.remove(os.path.join(dest_dir, oldfile))
 
         load_config()
@@ -148,5 +163,87 @@ def main():
         save_config()
 
 
+def install(args):
+    modlist = args.mods
 
-main()
+    global config
+    global config_dir
+    global config_file
+
+    changed = False
+
+    initialize()
+
+    current_game_version = config['current_game_ver']
+
+    for mod_id in modlist:
+        print(f'Checking Status for mod {mod_id}')
+
+        # prevent duplicate
+        if mod_id in config['mods'].keys():
+            print(f'{mod_id}already in the list')
+            continue
+
+        versions = []
+        try:
+            with request.urlopen('https://api.modrinth.com/api/v1/mod/'
+                                 + mod_id + '/version') as req:
+                versions = json.loads(req.read())
+        except HTTPError as e:
+            if e.code == 404:
+                print(f'{mod_id} could not be found')
+                print('double check the ID')
+            else:
+                print(f'{e} happened: thats all we know')
+                print(type(e.code))
+            continue
+        except BaseException as e:
+            print(f'{e} happened')
+            continue
+
+        # check compatibility
+        version_matches = False
+        for v in range(len(versions)):
+            if current_game_version in versions[v]['game_versions']:
+                version_matches = True
+                break
+
+        if version_matches:
+            load_config()
+            print(f'adding {mod_id} to installation queue...')
+            config['mods'][mod_id] = {}
+            save_config()
+            changed = True
+        else:
+            print(f'{mod_id} does not match the game '
+                  + f'version: {current_game_version}')
+
+    if changed:
+        update(None)
+
+
+def parse():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    # parser for install subcommand
+    parser_install = subparsers.add_parser('install', help='install help')
+    parser_install.add_argument(
+        'mods', nargs='*', type=str, help='install help'
+    )
+    parser_install.set_defaults(subcommand_func=install)
+
+    # parser for update subcommand
+    parser_update = subparsers.add_parser('update', help='update help')
+    parser_update.set_defaults(subcommand_func=update)
+
+    args = parser.parse_args()
+
+    if hasattr(args, 'subcommand_func'):
+        args.subcommand_func(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    parse()

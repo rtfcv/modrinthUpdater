@@ -92,17 +92,20 @@ def initialize():
 
     if (config == {}):
         create_config()
+        print('')
         print('config was empty')
         print(f'edit {config_file} and configure "dest_dir" to use')
         sys.exit(1)
 
     try:
         if not os.path.exists(config['dest_dir']):
+            print('')
             print(f'your dest_dir: {config["dest_dir"]}'
                   + ' does not seem to exist.')
             print(f'edit {config_file} and configure "dest_dir" to use')
             sys.exit(1)
     except BaseException as e:
+        print('')
         print(f'Error: {e}')
         print(f'Something was wrong with your config: {config_file}')
         sys.exit(1)
@@ -283,9 +286,13 @@ def parse():
     subparsers = parser.add_subparsers(help='subcommands')
 
     # parser for install subcommand
-    parser_install = subparsers.add_parser('install', help='install mods')
+    parser_install = subparsers.add_parser(
+        'install',
+        help='install mods from [modrinth](https://modrinth.com/)'
+    )
     parser_install.add_argument(
-        'mods', nargs='*', type=str, help='Project IDs from modrinth'
+        'mods', nargs='*', type=str,
+        help='Project IDs from [modrinth](https://modrinth.com/)'
     )
     parser_install.set_defaults(subcommand_func=install)
 

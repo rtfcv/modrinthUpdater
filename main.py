@@ -50,6 +50,10 @@ def load_config():
             config = json.load(file)
     except FileNotFoundError:
         config = {}
+        create_config()
+        print('config file did not exist')
+        print(f'edit {config_file} and configure "dest_dir" to use')
+        sys.exit(1)
 
 
 def save_config():
@@ -65,6 +69,18 @@ def save_config():
         json.dump(config, file, indent=2)
 
 
+def create_config():
+    ''' Create Brand-new config. this is destructive.
+    '''
+    global config
+
+    config['current_game_ver'] = '1.17.1'
+    config['dest_dir'] = 'your_install_destination'
+    config['mods'] = {}
+    config['mods']['P7dR8mSH'] = {}
+    save_config()
+
+
 def initialize():
     ''' Check existance of config file
     should also check format to some extent
@@ -75,13 +91,7 @@ def initialize():
     load_config()
 
     if (config == {}):
-        print('config was empty')
-        config['current_game_ver'] = '1.17.1'
-        config['dest_dir'] = 'your_install_destination'
-        config['mods'] = {}
-        config['mods']['P7dR8mSH'] = {}
-        save_config()
-
+        create_config()
         print('config was empty')
         print(f'edit {config_file} and configure "dest_dir" to use')
         sys.exit(1)
@@ -94,7 +104,7 @@ def initialize():
             sys.exit(1)
     except BaseException as e:
         print(f'Error: {e}')
-        print('Something was wrong with your config: {config_file}')
+        print(f'Something was wrong with your config: {config_file}')
         sys.exit(1)
     save_config()
 
@@ -120,12 +130,18 @@ def update(args):
         url = ''
         fname = ''
         version_number = ''
+        version_matches = False
         for v in range(len(versions)):
             if current_game_version in versions[v]['game_versions']:
                 version_number = versions[v]['version_number']
                 url = versions[v]['files'][0]['url']
                 fname = versions[v]['files'][0]['filename']
+                version_matches = True
                 break
+        if not version_matches:
+            print(f'{mod_id} does not match the game '
+                  + f'version: {current_game_version}')
+            continue
 
         # print(fname, version_number, url)
 
@@ -181,7 +197,18 @@ def install(args):
 
         # prevent duplicate
         if mod_id in config['mods'].keys():
-            print(f'{mod_id}already in the list')
+            try:
+                fpath = os.path.join(
+                    config['mods'],
+                    config['mods'][mod_id]['fname']
+                )
+            except BaseException:
+                fpath = ''
+            if os.path.exists(fpath):
+                print(f'{mod_id}already in the list')
+            else:
+                changed = True
+            # either way
             continue
 
         versions = []
@@ -243,6 +270,7 @@ def parse():
         args.subcommand_func(args)
     else:
         parser.print_help()
+        initialize()
 
 
 if __name__ == '__main__':

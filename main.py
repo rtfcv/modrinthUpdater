@@ -251,12 +251,12 @@ def install(args):
 
 def parse():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(help='sub-command help')
+    subparsers = parser.add_subparsers(help='subcommands')
 
     # parser for install subcommand
-    parser_install = subparsers.add_parser('install', help='install help')
+    parser_install = subparsers.add_parser('install', help='install mods')
     parser_install.add_argument(
-        'mods', nargs='*', type=str, help='install help'
+        'mods', nargs='*', type=str, help='Project IDs from modrinth'
     )
     parser_install.set_defaults(subcommand_func=install)
 

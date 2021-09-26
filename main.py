@@ -115,12 +115,11 @@ def update(args):
     global config_file
 
     initialize()
+    current_game_version = config['current_game_ver']
+    dest_dir = config['dest_dir']
 
     print('Updating Mods...')
     for mod_id in config['mods'].keys():
-        current_game_version = config['current_game_ver']
-        dest_dir = config['dest_dir']
-
         versions = []
         with request.urlopen('https://api.modrinth.com/api/v1/mod/'
                              + mod_id + '/version') as req:
@@ -177,6 +176,36 @@ def update(args):
         config['mods'][mod_id]['current_version'] = version_number
         config['mods'][mod_id]['fname'] = fname
         save_config()
+
+
+def list(args):
+    global config
+    global config_dir
+    global config_file
+
+    initialize()
+    for mod_id in config['mods'].keys():
+        modinfo = []
+        with request.urlopen('https://api.modrinth.com/api/v1/mod/'
+                             + mod_id) as req:
+            modinfo = json.loads(req.read())
+
+        try:
+            installed_ver = config['mods'][mod_id]['current_version']
+            fname = config['mods'][mod_id]['fname']
+        except KeyError:
+            installed_ver = 'Not installed?'
+            fname = 'Does not seem to be installed'
+
+        # print(json.dumps(modinfo, indent=2))
+        modname = modinfo['title']
+        desc = modinfo['description']
+
+        print(f'{mod_id}\t{modname}\t{installed_ver}')
+        if args.verbose:
+            print(f'\t{fname}')
+            print(f'\t{desc}')
+            print('')
 
 
 def install(args):
@@ -261,8 +290,17 @@ def parse():
     parser_install.set_defaults(subcommand_func=install)
 
     # parser for update subcommand
-    parser_update = subparsers.add_parser('update', help='update help')
+    parser_update = subparsers.add_parser('update', help='update mods')
     parser_update.set_defaults(subcommand_func=update)
+
+    # parser for list subcommand
+    parser_list = subparsers.add_parser('list', help='list installed mods')
+    parser_list.set_defaults(subcommand_func=list)
+    parser_list.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Print additional informations.'
+    )
 
     args = parser.parse_args()
 

@@ -3,7 +3,9 @@ import os.path
 import sys
 import io
 import json
+import re
 from urllib import request
+import urllib.parse
 from urllib.error import HTTPError
 from copy import deepcopy
 
@@ -119,6 +121,13 @@ def update(args):
 
     initialize()
     current_game_version = config['current_game_ver']
+    try:
+        short_version = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version).group(0)
+    except BaseException:
+        print(f'version {current_game_version} is unexpected')
+        print('It should look something like 1.12.3')
+        sys.exit(1)
+
     dest_dir = config['dest_dir']
 
     print('Updating Mods...')
@@ -133,8 +142,10 @@ def update(args):
         fname = ''
         version_number = ''
         version_matches = False
+        local_ver = (current_game_version, short_version)
+
         for v in range(len(versions)):
-            if current_game_version in versions[v]['game_versions']:
+            if any(ver in local_ver for ver in versions[v]['game_versions']):
                 version_number = versions[v]['version_number']
                 url = versions[v]['files'][0]['url']
                 fname = versions[v]['files'][0]['filename']
@@ -161,7 +172,7 @@ def update(args):
             continue
 
         # download if otherwise
-        with request.urlopen(url) as req,\
+        with request.urlopen(urllib.parse.quote(url, safe=':/')) as req,\
                 io.open(os.path.join(dest_dir, fname), 'wb') as file:
             print(f'downloading {fname}...')
             file.write(req.read())
@@ -189,9 +200,6 @@ def list(args):
     initialize()
     for mod_id in config['mods'].keys():
         modinfo = []
-        with request.urlopen('https://api.modrinth.com/api/v1/mod/'
-                             + mod_id) as req:
-            modinfo = json.loads(req.read())
 
         try:
             installed_ver = config['mods'][mod_id]['current_version']
@@ -201,8 +209,20 @@ def list(args):
             fname = 'Does not seem to be installed'
 
         # print(json.dumps(modinfo, indent=2))
-        modname = modinfo['title']
-        desc = modinfo['description']
+        try:
+            modname = config['mods'][mod_id]['title']
+            desc = config['mods'][mod_id]['description']
+        except BaseException:
+            with request.urlopen('https://api.modrinth.com/api/v1/mod/'
+                                 + mod_id) as req:
+                modinfo = json.loads(req.read())
+            modname = modinfo['title']
+            desc = modinfo['description']
+
+            load_config()
+            config['mods'][mod_id]['title'] = modname
+            config['mods'][mod_id]['description'] = desc
+            save_config()
 
         print(f'{mod_id}\t{modname}\t{installed_ver}')
         if args.verbose:
@@ -223,6 +243,12 @@ def install(args):
     initialize()
 
     current_game_version = config['current_game_ver']
+    try:
+        short_version = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version).group(0)
+    except BaseException:
+        print(f'version {current_game_version} is unexpected')
+        print('It should look something like 1.12.3')
+        sys.exit(1)
 
     for mod_id in modlist:
         print(f'Checking Status for mod {mod_id}')
@@ -263,7 +289,9 @@ def install(args):
         # check compatibility
         version_matches = False
         for v in range(len(versions)):
-            if current_game_version in versions[v]['game_versions']:
+            local_ver = (current_game_version, short_version)
+            remote_ver = versions[v]['game_versions']
+            if any(_v in local_ver for _v in remote_ver):
                 version_matches = True
                 break
 

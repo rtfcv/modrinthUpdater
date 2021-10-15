@@ -114,7 +114,7 @@ def initialize():
     save_config()
 
 
-def update(args):
+def update(args, **kwargs):
     global config
     global config_dir
     global config_file
@@ -130,8 +130,17 @@ def update(args):
 
     dest_dir = config['dest_dir']
 
+    modlist = list(config['mods'].keys())
+
+    # which mods to force installation
+    force_list = []
+    try:
+        force_list = kwargs['force']
+    except BaseException:
+        pass
+
     print('Updating Mods...')
-    for mod_id in config['mods'].keys():
+    for mod_id in modlist:
         versions = []
         with request.urlopen('https://api.modrinth.com/api/v1/mod/'
                              + mod_id + '/version') as req:
@@ -151,10 +160,19 @@ def update(args):
                 fname = versions[v]['files'][0]['filename']
                 version_matches = True
                 break
-        if not version_matches:
+
+        if not version_matches and mod_id not in force_list:
             print(f'{mod_id} does not match the game '
                   + f'version: {current_game_version}')
             continue
+
+        # force newest version if in force list
+        if mod_id in force_list:
+            print(f'{mod_id}: forcing installation')
+            version_number = versions[0]['version_number']
+            url = versions[0]['files'][0]['url']
+            fname = versions[0]['files'][0]['filename']
+            version_matches = True
 
         # print(fname, version_number, url)
 
@@ -192,7 +210,7 @@ def update(args):
         save_config()
 
 
-def list(args):
+def do_list(args):
     global config
     global config_dir
     global config_file
@@ -295,7 +313,7 @@ def install(args):
                 version_matches = True
                 break
 
-        if version_matches:
+        if version_matches or args.force:
             load_config()
             print(f'adding {mod_id} to installation queue...')
             config['mods'][mod_id] = {}
@@ -306,7 +324,10 @@ def install(args):
                   + f'version: {current_game_version}')
 
     if changed:
-        update(None)
+        if args.force:
+            update(None, force=modlist)
+        else:
+            update(None)
 
 
 def parse():
@@ -322,6 +343,11 @@ def parse():
         'mods', nargs='*', type=str,
         help='Project IDs from [modrinth](https://modrinth.com/)'
     )
+    parser_install.add_argument(
+        '--force', '-f',
+        action='store_true',
+        help='Print additional informations.'
+    )
     parser_install.set_defaults(subcommand_func=install)
 
     # parser for update subcommand
@@ -330,7 +356,7 @@ def parse():
 
     # parser for list subcommand
     parser_list = subparsers.add_parser('list', help='list installed mods')
-    parser_list.set_defaults(subcommand_func=list)
+    parser_list.set_defaults(subcommand_func=do_list)
     parser_list.add_argument(
         '--verbose', '-v',
         action='store_true',

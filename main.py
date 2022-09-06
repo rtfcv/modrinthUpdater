@@ -120,6 +120,8 @@ def update(args, **kwargs):
     global config_file
 
     initialize()
+    assert config is not None
+
     current_game_version = config['current_game_ver']
     try:
         short_version = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version).group(0)
@@ -190,11 +192,17 @@ def update(args, **kwargs):
             continue
 
         # download if otherwise
-        with request.urlopen(urllib.parse.quote(url, safe=':/')) as req,\
-                io.open(os.path.join(dest_dir, fname), 'wb') as file:
-            print(f'downloading {fname}...')
-            file.write(req.read())
-            print(f'installing {fname}...')
+        url=url.replace('%2B','+') # having this escaped produce 403...
+        __req = request.Request(urllib.parse.quote(url, safe=':/+'))
+        __req.add_header('User-Agent', 'Mozilla/5.0') # not having UserAgent produce 403...
+        try:
+            with request.urlopen(__req) as req,\
+                    io.open(os.path.join(dest_dir, fname), 'wb') as file:
+                print(f'downloading {fname}...')
+                file.write(req.read())
+                print(f'installing {fname}...')
+        except BaseException as e:
+            print(f'{e.__class__.__name__}: {e}\n{url}')
 
         # remove old file if any
         if os.path.exists(os.path.join(dest_dir, oldfile))\

@@ -211,7 +211,8 @@ def update(args, **kwargs):
         for v in range(len(versions)):
             # if any(ver in local_ver for ver in versions[v]['game_versions']):
             # make loader configureable in the future
-            if any(ver in local_ver for ver in versions[v]['game_versions']) and ('fabric' in versions[v]['loaders']):
+            if any(ver in local_ver for ver in versions[v]['game_versions'])\
+                    and ('fabric' in versions[v]['loaders'] or 'quilt' in versions[v]['loaders']):
                 version_number = versions[v]['version_number']
                 url = versions[v]['files'][0]['url']
                 fname = versions[v]['files'][0]['filename']

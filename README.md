@@ -8,5 +8,8 @@ python3 and friends...
 
 ## Usage
 
-__USE THIS HOWEVER YOU WOULD LIKE__
-__AT YOUR OWN RISK__
+1. Go to directory where you would like to unpack mods.(e.g. `$HOME/.minecraft/mods`)
+1. Execute `modrintuUpdator initlocal`
+1. Execute `modrinthUpdator install [modID]` / `modrinthUpdator update` to install/update mods.
+
+

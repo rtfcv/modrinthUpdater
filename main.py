@@ -1,5 +1,6 @@
 import argparse
 import os.path
+import os
 import sys
 import io
 import json
@@ -7,12 +8,24 @@ import re
 from urllib import request
 import urllib.parse
 from urllib.error import HTTPError
-from copy import deepcopy
 
 args = []
 config = None
 config_dir = ''
 config_file = ''
+
+local_config_dir = '.'
+local_config_fname = 'mods.json'
+local_config_file = os.path.join(local_config_dir, local_config_fname)
+
+
+def configure_local_config_path():
+    global config_dir
+    global config_file
+
+    config_dir = '.'
+    config_fname = 'mods.json'
+    config_file = os.path.join(config_dir, config_fname)
 
 
 def load_paths():
@@ -24,14 +37,21 @@ def load_paths():
     config_dirname = 'modrinthUpdater'
     config_fname = 'data.json'
 
+    if os.path.isfile(local_config_file): # DUMMY CONDITION
+        # use ./mods.json if it exists
+        configure_local_config_path()
+        return
+
     __platform__ = sys.platform
     if __platform__ == 'win32':
         HOME = os.environ.get('HOMEPATH')
+        assert HOME is not None
         config_dir = os.path.join(HOME, r'AppData\Roaming', config_dirname)
         config_file = os.path.join(config_dir, config_fname)
 
     elif __platform__ == 'linux':
         HOME = os.environ.get('HOME')
+        assert HOME is not None
         config_dir = os.path.join(HOME, '.config', config_dirname)
         config_file = os.path.join(config_dir, config_fname)
 
@@ -75,12 +95,37 @@ def create_config():
     ''' Create Brand-new config. this is destructive.
     '''
     global config
+    assert config is not None
 
     config['current_game_ver'] = '1.17.1'
-    config['dest_dir'] = 'your_install_destination'
+    if config_dir != '.':
+        config['dest_dir'] = 'your_install_destination'
     config['mods'] = {}
     config['mods']['P7dR8mSH'] = {}
     save_config()
+
+
+def init_local(*args):
+    ''' Create Brand-new local config. this is destructive.
+    '''
+    _ = args
+    global config
+    global config_dir
+    global config_file
+
+    if os.path.isfile(local_config_file):
+        print(f'{local_config_file} exists.\nExiting...')
+        exit(1)
+
+    if config is None: config = {}
+    config_dir = '.'
+    config_file = 'mods.json'
+
+    config['current_game_ver'] = input('input game version: ')
+    config['mods'] = {}
+    config['mods']['P7dR8mSH'] = {}
+    save_config()
+    exit(0)
 
 
 def initialize():
@@ -91,6 +136,7 @@ def initialize():
     global config_dir
     global config_file
     load_config()
+    assert config is not None
 
     if (config == {}):
         create_config()
@@ -106,15 +152,17 @@ def initialize():
                   + ' does not seem to exist.')
             print(f'edit {config_file} and configure "dest_dir" to use')
             sys.exit(1)
-    except BaseException as e:
-        print('')
-        print(f'Error: {e}')
-        print(f'Something was wrong with your config: {config_file}')
-        sys.exit(1)
+    except KeyError as e:
+        if config_dir != '.':
+            print('')
+            print(f'Error:{e.__class__.__name__} {e}')
+            print(f'Something was wrong with your config: {config_file}')
+            sys.exit(1)
     save_config()
 
 
 def update(args, **kwargs):
+    _ = args
     global config
     global config_dir
     global config_file
@@ -124,13 +172,18 @@ def update(args, **kwargs):
 
     current_game_version = config['current_game_ver']
     try:
-        short_version = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version).group(0)
+        tmpMatch = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version)
+        assert tmpMatch is not None
+        short_version = tmpMatch.group(0)
     except BaseException:
         print(f'version {current_game_version} is unexpected')
         print('It should look something like 1.12.3')
         sys.exit(1)
 
-    dest_dir = config['dest_dir']
+    try:
+        dest_dir = config['dest_dir']
+    except BaseException as e:
+        dest_dir = '.'
 
     modlist = list(config['mods'].keys())
 
@@ -224,6 +277,8 @@ def do_list(args):
     global config_file
 
     initialize()
+    assert config is not None
+
     for mod_id in config['mods'].keys():
         modinfo = []
 
@@ -267,10 +322,13 @@ def install(args):
     changed = False
 
     initialize()
+    assert config is not None
 
     current_game_version = config['current_game_ver']
     try:
-        short_version = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version).group(0)
+        regMatch = re.match(pattern=r'^[0-9]*\.[0-9]*', string=current_game_version)
+        assert regMatch is not None
+        short_version = regMatch.group(0)
     except BaseException:
         print(f'version {current_game_version} is unexpected')
         print('It should look something like 1.12.3')
@@ -370,6 +428,10 @@ def parse():
         action='store_true',
         help='Print additional informations.'
     )
+
+    # parser for initlocal subcommand
+    parser_update = subparsers.add_parser('initlocal', help='initialize local config')
+    parser_update.set_defaults(subcommand_func=init_local)
 
     args = parser.parse_args()
 

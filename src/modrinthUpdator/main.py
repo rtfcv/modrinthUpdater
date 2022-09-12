@@ -220,7 +220,9 @@ def update(args, **kwargs):
                 break
 
         if not version_matches and mod_id not in force_list:
-            print(f'{mod_id} does not match the game '
+            try: mod_title=config['mods'][mod_id]['title']
+            except KeyError as e: mod_title=str(e)
+            print(f'{mod_id} ({mod_title}) does not match the game '
                   + f'version: {current_game_version}')
             continue
 

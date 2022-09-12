@@ -20,9 +20,14 @@ Usage
 -----
 
 1. initialize
+
   1. Go to directory where you would like to unpack mods. (e.g. ``$HOME/.minecraft/mods``)
-  1. Execute ``modrintuUpdator initlocal``
-1.  install some mods
+  2. Execute ``modrintuUpdator initlocal``
+
+2.  install some mods
+
    1. Execute ``modrinthUpdator install [modID]``
-1.  update some mods
+
+3.  update some mods
+
    1. ``modrinthUpdator update`` to install/update mods.

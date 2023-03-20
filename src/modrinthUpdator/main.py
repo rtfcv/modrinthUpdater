@@ -197,7 +197,7 @@ def update(args, **kwargs):
     print('Updating Mods...')
     for mod_id in modlist:
         versions = []
-        with request.urlopen('https://api.modrinth.com/api/v1/mod/'
+        with request.urlopen('https://api.modrinth.com/v2/project/'
                              + mod_id + '/version') as req:
             versions = json.loads(req.read())
 

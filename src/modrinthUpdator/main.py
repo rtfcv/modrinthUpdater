@@ -197,9 +197,13 @@ def update(args, **kwargs):
     print('Updating Mods...')
     for mod_id in modlist:
         versions = []
-        with request.urlopen('https://api.modrinth.com/v2/project/'
-                             + mod_id + '/version') as req:
-            versions = json.loads(req.read())
+        theURL = f'https://api.modrinth.com/v2/project/{mod_id}/version'
+        with request.urlopen(theURL) as req:
+            try:
+                versions = json.loads(req.read())
+            except BaseException as e:
+                print(f'{e.__class__.__name__}: {e}')
+                print(f'retrieving \'{theURL}\' failed')
 
         v = 0
         url = ''

@@ -160,6 +160,8 @@ def initialize():
             sys.exit(1)
     save_config()
 
+def getVersionUrl(mod_id:str) -> str:
+    return f'https://api.modrinth.com/v2/project/{mod_id}/version'
 
 def update(args, **kwargs):
     _ = args
@@ -197,7 +199,7 @@ def update(args, **kwargs):
     print('Updating Mods...')
     for mod_id in modlist:
         versions = []
-        theURL = f'https://api.modrinth.com/v2/project/{mod_id}/version'
+        theURL = getVersionUrl(mod_id)
         with request.urlopen(theURL) as req:
             try:
                 versions = json.loads(req.read())
@@ -303,7 +305,7 @@ def do_list(args):
             modname = config['mods'][mod_id]['title']
             desc = config['mods'][mod_id]['description']
         except BaseException:
-            with request.urlopen('https://api.modrinth.com/api/v1/mod/'
+            with request.urlopen('https://api.modrinth.com/v2/project/'
                                  + mod_id) as req:
                 modinfo = json.loads(req.read())
             modname = modinfo['title']
@@ -363,9 +365,9 @@ def install(args):
             continue
 
         versions = []
+        versionsURL = getVersionUrl(mod_id)
         try:
-            with request.urlopen('https://api.modrinth.com/api/v1/mod/'
-                                 + mod_id + '/version') as req:
+            with request.urlopen(versionsURL) as req:
                 versions = json.loads(req.read())
         except HTTPError as e:
             if e.code == 404:

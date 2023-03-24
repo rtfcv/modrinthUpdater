@@ -214,6 +214,8 @@ def update(args, **kwargs):
         version_matches = False
         local_ver = (current_game_version, short_version)
 
+        # if versions[0]['project_id']=='RphJSnEs': print(json.dumps(versions[0],indent=2))
+
         for v in range(len(versions)):
             # if any(ver in local_ver for ver in versions[v]['game_versions']):
             # make loader configureable in the future
@@ -227,8 +229,8 @@ def update(args, **kwargs):
 
         if not version_matches and mod_id not in force_list:
             try: mod_title=config['mods'][mod_id]['title']
-            except KeyError as e: mod_title=str(e)
-            print(f'{mod_id} ({mod_title}) does not match the game '
+            except KeyError as e: mod_title=versions[0]['name']
+            print(f'{mod_id} ({mod_title}) does not match the game / not a fabric compatible mod'
                   + f'version: {current_game_version}')
             continue
 
@@ -407,9 +409,62 @@ def install(args):
             update(None)
 
 
+def search(args):
+    queryList = args.query
+    queryStr = ' '.join(queryList)
+    queryStr = urllib.parse.quote(queryStr)
+
+    global config
+    global config_dir
+    global config_file
+
+    # changed = False
+
+    initialize()
+    assert config is not None
+
+    current_game_version = config['current_game_ver']
+
+    try:
+        with request.urlopen(f'https://api.modrinth.com/v2/search?query={queryStr}') as req:
+            versions = json.loads(req.read())
+    except HTTPError as e:
+        if e.code == 404:
+            print(f'{queryStr} could not be found')
+            print('double check the ID')
+        else:
+            print(f'There was error retrieving information of {queryStr}.')
+            print(f'{e} happened: thats all we know')
+        return
+    except BaseException as e:
+        print(f'{e} happened')
+        return
+
+    hits = versions['hits']
+    for txt in hits:
+        print(f'{txt["project_id"]}:\t{txt["title"]}\t({txt["project_type"]})')
+        print(f'\tAuthor:\t{txt["author"]}')
+        print(f'\t\t{txt["description"]}')
+        if current_game_version not in txt['versions']:
+            print(f'version {current_game_version} not compatible with this mod')
+        print('')
+
+
+
 def parse():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help='subcommands')
+
+    # parser for search subcommand
+    parser_search = subparsers.add_parser(
+        'search',
+        help='search mods from [modrinth](https://modrinth.com/)'
+    )
+    parser_search.add_argument(
+        'query', nargs='*', type=str,
+        help='search query'
+    )
+    parser_search.set_defaults(subcommand_func=search)
 
     # parser for install subcommand
     parser_install = subparsers.add_parser(

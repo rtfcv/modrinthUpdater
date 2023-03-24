@@ -1,1 +1,1 @@
-from modrinthUpdator.main import parse
+from modrinthUpdater.main import parse

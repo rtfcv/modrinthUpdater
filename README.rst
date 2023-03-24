@@ -8,8 +8,11 @@ Installation
 
 ::
 
-   git clone https://github.com/rtfcv/modrinthUpdater
-   pip install modrinthUpdater
+   pip install git+https://github.com/rtfcv/modrinthUpdater
+
+or
+
+   pipx install git+https://github.com/rtfcv/modrinthUpdater
 
 Dependency
 ----------
